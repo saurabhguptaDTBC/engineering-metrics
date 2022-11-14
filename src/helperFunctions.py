@@ -1,19 +1,38 @@
 import json
 from openpyxl.styles import Font
 import requests
-from config import *
+from config_core import *
 
-def resetSheet(sheetName, workbook):
+import datetime
+import time
+
+def getLastDayOfWeek(p_year,p_week):
+    firstdayofweek = datetime.datetime.strptime(f'{p_year}-W{int(p_week )- 1}-1', "%Y-W%W-%w").date()
+    lastdayofweek = firstdayofweek + datetime.timedelta(days=6.9)
+    return lastdayofweek
+
+def getNextSunday(day):
+    lvIsoDate=datetime.datetime.fromisoformat(day)
+    lvNextSunday=lvIsoDate
+    while lvNextSunday.strftime('%a') !='Sun':
+       # print ('Current Day for ' + str(lvNextSunday) + ' is ' + lvNextSunday.strftime('%a'))
+        lvNextSunday += datetime.timedelta(1)
+    return str(lvNextSunday)
+
+def resetSheet(sheetName, workbook,lvMode):
     if sheetName in workbook.sheetnames:
         del workbook[sheetName]
     workbook.create_sheet(sheetName)
     sheet = workbook[sheetName]
-    setSheetHeaderRow(sheet,sheetName)
+    setSheetHeaderRow(sheet,sheetName,lvMode)
 
 
-def setSheetHeaderRow(sheet, sheetName):
+def setSheetHeaderRow(sheet, sheetName,lvMode):
     if sheetName == 'Stories':
-        sheet.append(['Id','Name','Effort','Project','Team','Feature','LeadTime','CycleTime','Release','Iteration','State','BugsCount','IterationReleaseCount'])
+        if lvMode == 'Sprint':
+          sheet.append(['Id','Name','Effort','Project','Team','Feature','LeadTime','CycleTime','Release','Iteration','State','BugsCount','IterationReleaseCount','TeamIterationName','IterationStartDate','IterationEndDate','PivotNameDate'])
+        else:
+          sheet.append(['Id','Name','Effort','Project','Team','Feature','LeadTime','CycleTime','Release','State','BugsCount','IterationReleaseCount','CalendarWeek','StoryEndDate','PivotWeek'])  
     elif sheetName == 'Releases':
         sheet.append(['Id','Name','EndDate','Total Effort','Release Owner'])
     vHeaderFont=Font(size=14,bold=True)

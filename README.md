@@ -12,4 +12,4 @@ ____
 1. Fill in the relevant information in the config.py [inside src folder : Move outside source]
     1. Update the TP Access Code in config.py ( TODO : Move to environment variable) as the environment variables 
 2. Run pip3 install -r requirements.txt to install dependencies
-3. Run python populateAccelerateMetrics.py
+3. Run python3 populateAccelerateMetrics.py
