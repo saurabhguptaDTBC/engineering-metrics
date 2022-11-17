@@ -13,3 +13,5 @@ ____
     1. Update the TP Access Code in config.py ( TODO : Move to environment variable) as the environment variables 
 2. Run pip3 install -r requirements.txt to install dependencies
 3. Run python3 populateAccelerateMetrics.py
+   # For capturing Kanban Metrics : Run python3 populateAccelerateMetrics.py kanban 
+        
