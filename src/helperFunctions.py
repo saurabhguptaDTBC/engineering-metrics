@@ -30,7 +30,7 @@ def resetSheet(sheetName, workbook,lvMode):
 def setSheetHeaderRow(sheet, sheetName,lvMode):
     if sheetName == 'Stories':
         if lvMode == 'Sprint':
-          sheet.append(['Id','Name','Effort','Project','Team','Feature','LeadTime','CycleTime','Release','Iteration','State','BugsCount','IterationReleaseCount','TeamIterationName','IterationStartDate','IterationEndDate','PivotNameDate'])
+          sheet.append(['Id','Name','Effort','Project','Team','Feature','ModifiedCycleTime','CycleTime','Release','Iteration','State','BugsCount','IterationReleaseCount','TeamIterationName','IterationStartDate','IterationEndDate','PivotNameDate','DeploymentDate','UAT Date','Story End Date'])
         else:
           sheet.append(['Id','Name','Effort','Project','Team','Feature','LeadTime','CycleTime','Release','State','BugsCount','IterationReleaseCount','CalendarWeek','StoryEndDate','PivotWeek'])  
     elif sheetName == 'Releases':

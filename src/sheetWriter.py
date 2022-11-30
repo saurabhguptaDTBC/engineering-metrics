@@ -54,13 +54,16 @@ def populateStories(book):
     for loopProjects in gvProjects:
         for loopTeams in gvTeams:
             sheet = book[gvSheetNameStories]
-            URL="https://drivetime.tpondemand.com/api/v1/UserStories?where=(Team.Name%20eq%20%27"+loopTeams+"%27)and(Project.ID%20eq%20"+ str(loopProjects) +")and(CreateDate%20gt%20%272022-01-01%27)&include=[Id,Name,Effort,Project,Iteration[Name],Team[Name],Feature[Name],LeadTime,CycleTime,Release,TeamIteration[Id],EntityState[Name]]&append=[Bugs-count]&take=1000&orderbydesc=Effort&format=json&dateformat=iso"
+            URL="https://drivetime.tpondemand.com/api/v1/UserStories?where=(Team.Name%20eq%20%27"+loopTeams+"%27)and(Project.ID%20eq%20"+ str(loopProjects) +")and(CreateDate%20gt%20%272022-01-01%27)&include=[Id,Name,Effort,Project,Iteration[Name],Team[Name],Feature[Name],LeadTime,CycleTime,Release,TeamIteration[Id],EntityState[Name],CustomFields]&append=[Bugs-count]&take=1000&orderbydesc=Effort&format=json&dateformat=iso"
             while URL != "":
                 json_dict= requestHelper(URL)
                 iterationReleaseList=[]
                 vIterationRelease=""
                 releaseCount=0
                 for item in json_dict['Items']:
+                    vDevEndDate=""
+                    vDeploymentDate=""
+                    lvModifiedCycleTime=0
                 # The following block is added to get unique releases in iteration : excel wasn't giving me an easy way to do this
                     if ifnull(item['Release'],"null",'Id') != "null" and ifnull(item['TeamIteration'],"null",'Id') != "null":
                         vIterationRelease=str(ifnull(item['Release'],"null",'Id'))+":"+str(ifnull(item['TeamIteration'],"null",'Id'))
@@ -86,8 +89,17 @@ def populateStories(book):
                        #     lvWeek=datetime.fromisoformat(item['EndDate']).isocalendar()[1]
                        # else:
                        #     lvWeek=""
-
-                    row = [item['Id'], item['Name'],item['Effort'],ifnull(item['Project'],"null",'Name'),ifnull(item['Team'],"null",'Name'),ifnull(item['Feature'],"null",'Name'), item['LeadTime'],item['CycleTime'], ifnull(item['Release'],"",'Id'),ifnull(item['TeamIteration'],"",'Id'),ifnull(item['EntityState'],"null",'Name'),item['Bugs-Count'],releaseCount,lvIterationName,lvIterationStartDate,lvIterationEndDate, lvPivot ]
+                    for custom in item['CustomFields']:
+                        if (custom['Name']=="DateToUAT" and custom['Value'] is not None):
+                            vDevEndDate=custom['Value']
+                        elif(custom['Name']=="DateToProd" and custom['Value'] is not None):
+                            vDeploymentDate=custom['Value']
+                    if (vDevEndDate !="" and vDevEndDate is not None and vDeploymentDate !="" and vDeploymentDate is not None):
+                        lvModifiedCycleTime= (datetime.fromisoformat(str(vDeploymentDate)) -  datetime.fromisoformat(str(vDevEndDate))).days
+                        if (lvModifiedCycleTime < 0):
+                            lvModifiedCycleTime=0
+#                    row = [item['Id'], item['Name'],item['Effort'],ifnull(item['Project'],"null",'Name'),ifnull(item['Team'],"null",'Name'),ifnull(item['Feature'],"null",'Name'), item['LeadTime'],item['CycleTime'], ifnull(item['Release'],"",'Id'),ifnull(item['TeamIteration'],"",'Id'),ifnull(item['EntityState'],"null",'Name'),item['Bugs-Count'],releaseCount,lvIterationName,lvIterationStartDate,lvIterationEndDate, lvPivot ,vDeploymentDate,vDevEndDate]
+                    row = [item['Id'], item['Name'],item['Effort'],ifnull(item['Project'],"null",'Name'),ifnull(item['Team'],"null",'Name'),ifnull(item['Feature'],"null",'Name'), lvModifiedCycleTime,item['CycleTime'], ifnull(item['Release'],"",'Id'),ifnull(item['TeamIteration'],"",'Id'),ifnull(item['EntityState'],"null",'Name'),item['Bugs-Count'],releaseCount,lvIterationName,lvIterationStartDate,lvIterationEndDate, lvPivot ,vDeploymentDate,vDevEndDate,item['EndDate']]
                     sheet.append(row)
                     # if item['Release'] is not None:
                         # vReleases.add(item['Release']['Id'])
