@@ -32,7 +32,7 @@ def setSheetHeaderRow(sheet, sheetName,lvMode):
         if lvMode == 'Sprint':
           sheet.append(['Id','Name','Effort','Project','Team','Feature','ModifiedCycleTime','CycleTime','Release','Iteration','State','BugsCount','IterationReleaseCount','TeamIterationName','IterationStartDate','IterationEndDate','PivotNameDate','DeploymentDate','UAT Date','Story End Date'])
         else:
-          sheet.append(['Id','Name','Effort','Project','Team','Feature','LeadTime','CycleTime','Release','State','BugsCount','IterationReleaseCount','CalendarWeek','StoryEndDate','PivotWeek'])  
+          sheet.append(['Id','Name','Effort','Project','Team','Feature','ModifiedCycleTime','CycleTime','Release','State','BugsCount','IterationReleaseCount','CalendarWeek','StoryEndDate','PivotWeek','DeploymentDate','UAT Date'])  
     elif sheetName == 'Releases':
         sheet.append(['Id','Name','EndDate','Total Effort','Release Owner'])
     vHeaderFont=Font(size=14,bold=True)
