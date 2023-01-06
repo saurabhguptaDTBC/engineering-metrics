@@ -2,7 +2,7 @@ from distutils.command.config import config
 from config_digital import *
 import openpyxl
 from asyncore import loop
-from helperFunctions import ifnull, resetSheet, requestHelper
+from helperFunctions import ifnull, resetSheet, requestHelper, getLastDayOfWeek, getNextSunday
 from datetime import *
 # vIterations=set()
 # vReleases=set()
@@ -50,30 +50,32 @@ def getPersonMetrics():
             
 
 def populateStories(book):
-    resetSheet(gvSheetNameStories,book,"Sprint")
     for loopProjects in gvProjects:
         for loopTeams in gvTeams:
             sheet = book[gvSheetNameStories]
-            URL="https://drivetime.tpondemand.com/api/v1/UserStories?where=(Team.Name%20eq%20%27"+loopTeams+"%27)and(Project.ID%20eq%20"+ str(loopProjects) +")and(CreateDate%20gt%20%272022-01-01%27)&include=[Id,Name,Effort,Project,Iteration[Name],Team[Name],Feature[Name],LeadTime,CycleTime,Release,TeamIteration[Id],EntityState[Name],CustomFields]&append=[Bugs-count]&take=1000&orderbydesc=Effort&format=json&dateformat=iso"
+            URL="https://drivetime.tpondemand.com/api/v1/UserStories?where=(Team.Name%20eq%20%27"+loopTeams+"%27)and(Project.ID%20eq%20"+ str(loopProjects) +")and(CreateDate%20gt%20%272022-01-01%27)&include=[Id,Name,Effort,Project,Iteration[Name],Team[Name],Assignments[GeneralUser,Role],Feature[Name],LeadTime,CycleTime,Release,TeamIteration[Id],EntityState[Name],CustomFields]&append=[Bugs-count]&take=1000&orderbydesc=Effort&format=json&dateformat=iso"
+            
             while URL != "":
                 json_dict= requestHelper(URL)
-                iterationReleaseList=[]
-                vIterationRelease=""
-                releaseCount=0
+
                 for item in json_dict['Items']:
                     vDevEndDate=""
                     vDeploymentDate=""
-                    lvModifiedCycleTime=0
-                # The following block is added to get unique releases in iteration : excel wasn't giving me an easy way to do this
-                    if ifnull(item['Release'],"null",'Id') != "null" and ifnull(item['TeamIteration'],"null",'Id') != "null":
-                        vIterationRelease=str(ifnull(item['Release'],"null",'Id'))+":"+str(ifnull(item['TeamIteration'],"null",'Id'))
-                        if vIterationRelease not in iterationReleaseList:
-                            iterationReleaseList.append (vIterationRelease)   
-                            releaseCount=1
-                        else:
-                            releaseCount=0
-                    else:
-                        releaseCount=0
+                    lvModifiedCycleTime=""
+                    lvDeveloper=""
+                    lvMultipleDevelopers=0
+                    lvWeek=""
+                    lvLinkId=""
+                    lvLinkRelease=""
+
+                    lvLinkId = "=HYPERLINK(\"https://drivetime.tpondemand.com/entity/" + str(item['Id']) + "\", \"" + str(item['Id']) + "\")"
+
+                    if item['Release'] is not None:
+                        lvLinkRelease = "=HYPERLINK(\"https://drivetime.tpondemand.com/entity/" + str(item['Release']['Id']) + "\", \"" + str(item['Release']['Id']) + "\")"
+
+                    if item['EndDate'] is not None:                        
+                        lvWeek=datetime.fromisoformat(item['EndDate']).strftime("%W")                                                              
+
                     if item['TeamIteration'] is not None:
                         lvIterationObject=getTeamIterationDetails(item['TeamIteration']['Id'])
                         lvIterationName=lvIterationObject['Name']
@@ -85,10 +87,14 @@ def populateStories(book):
                         lvIterationStartDate=""
                         lvIterationEndDate=""
                         lvPivot =""
-                       # if item['EndDate'] is not None:
-                       #     lvWeek=datetime.fromisoformat(item['EndDate']).isocalendar()[1]
-                       # else:
-                       #     lvWeek=""
+                    
+                    for assignment in item['Assignments']['Items']:
+                        if (assignment['Role']['Name']=="Developer"):
+                            if (lvMultipleDevelopers > 0):
+                                lvDeveloper=lvDeveloper + " and "
+                            lvDeveloper=lvDeveloper + assignment['GeneralUser']['FullName']
+                            lvMultipleDevelopers += 1
+
                     for custom in item['CustomFields']:
                         if (custom['Name']=="DateToUAT" and custom['Value'] is not None):
                             vDevEndDate=custom['Value']
@@ -98,36 +104,101 @@ def populateStories(book):
                         lvModifiedCycleTime= (datetime.fromisoformat(str(vDeploymentDate)) -  datetime.fromisoformat(str(vDevEndDate))).days
                         if (lvModifiedCycleTime < 0):
                             lvModifiedCycleTime=0
-#                    row = [item['Id'], item['Name'],item['Effort'],ifnull(item['Project'],"null",'Name'),ifnull(item['Team'],"null",'Name'),ifnull(item['Feature'],"null",'Name'), item['LeadTime'],item['CycleTime'], ifnull(item['Release'],"",'Id'),ifnull(item['TeamIteration'],"",'Id'),ifnull(item['EntityState'],"null",'Name'),item['Bugs-Count'],releaseCount,lvIterationName,lvIterationStartDate,lvIterationEndDate, lvPivot ,vDeploymentDate,vDevEndDate]
-                    row = [item['Id'], item['Name'],item['Effort'],ifnull(item['Project'],"null",'Name'),ifnull(item['Team'],"null",'Name'),ifnull(item['Feature'],"null",'Name'), lvModifiedCycleTime,item['CycleTime'], ifnull(item['Release'],"",'Id'),ifnull(item['TeamIteration'],"",'Id'),ifnull(item['EntityState'],"null",'Name'),item['Bugs-Count'],releaseCount,lvIterationName,lvIterationStartDate,lvIterationEndDate, lvPivot ,vDeploymentDate,vDevEndDate,item['EndDate']]
+
+                    row = [lvLinkId, item['Name'],"UserStory",ifnull(item['Project'],"null",'Name'),ifnull(item['Team'],"null",'Name'),lvWeek,lvDeveloper,ifnull(item['Feature'],"null",'Name'), lvModifiedCycleTime,item['CycleTime'], lvLinkRelease,"",item['Effort'],ifnull(item['TeamIteration'],"",'Id'),ifnull(item['EntityState'],"null",'Name'),item['Bugs-Count'],lvIterationName,lvIterationStartDate,lvIterationEndDate, lvPivot ,vDeploymentDate,vDevEndDate,item['EndDate'], "=IFERROR(1/COUNTIF($I:$I,@$I:$I), 0)"]
+                    
                     sheet.append(row)
-                    # if item['Release'] is not None:
-                        # vReleases.add(item['Release']['Id'])
-                    #if item['TeamIteration'] is not None
-                        # vIterations.add(item['TeamIteration']['Id'])
-                    #    lvIterationObject=getTeamIterationDetails(item['TeamIteration']['Id'])
+                   
                 try:
                     URL=json_dict['Next']
                 except:
                     URL=""
 
 
+def populateBugs(book):
+    for loopProjects in gvProjects:
+        for loopTeams in gvTeams:
+            sheet = book[gvSheetNameStories]
+            URL="https://drivetime.tpondemand.com/api/v1/Bugs?where=(Team.Name%20eq%20%27"+loopTeams+"%27)and(Project.ID%20eq%20"+ str(loopProjects) +")and(CreateDate%20gt%20%272022-01-01%27)&include=[Id,Name,Effort,Project,Iteration[Name],Team[Name],Assignments[GeneralUser,Role],Feature[Name],LeadTime,CycleTime,Release,TeamIteration[Id],EntityState[Name],UserStory[Id],CustomFields]&take=1000&orderbydesc=Effort&format=json&dateformat=iso"
+
+            while URL != "":
+                json_dict= requestHelper(URL)
+
+                for item in json_dict['Items']:
+                    vDevEndDate=""
+                    vDeploymentDate=""
+                    lvModifiedCycleTime=""
+                    lvDeveloper=""
+                    lvMultipleDevelopers=0
+                    lvWeek=""
+                    lvLinkId=""
+                    lvLinkRelease=""
+                    lvRelatedUserStory=""
+
+                    lvLinkId = "=HYPERLINK(\"https://drivetime.tpondemand.com/entity/" + str(item['Id']) + "\", \"" + str(item['Id']) + "\")"
+
+                    if item['Release'] is not None:
+                        lvLinkRelease = "=HYPERLINK(\"https://drivetime.tpondemand.com/entity/" + str(item['Release']['Id']) + "\", \"" + str(item['Release']['Id']) + "\")"
+
+                    if item['UserStory'] is not None:
+                        lvRelatedUserStory = "=HYPERLINK(\"https://drivetime.tpondemand.com/entity/" + str(item['UserStory']['Id']) + "\", \"" + str(item['UserStory']['Id']) + "\")"
+
+                    if item['EndDate'] is not None:                        
+                        lvWeek=datetime.fromisoformat(item['EndDate']).strftime("%W")  
+                
+                    if item['TeamIteration'] is not None:
+                        lvIterationObject=getTeamIterationDetails(item['TeamIteration']['Id'])
+                        lvIterationName=lvIterationObject['Name']
+                        lvIterationStartDate=lvIterationObject['StartDate'][0:10]
+                        lvIterationEndDate=lvIterationObject['EndDate'][0:10]
+                        lvPivot = lvIterationName + " : " + lvIterationStartDate + " - " + lvIterationEndDate
+                    else:
+                        lvIterationName=""
+                        lvIterationStartDate=""
+                        lvIterationEndDate=""
+                        lvPivot =""
+
+                    for assignment in item['Assignments']['Items']:
+                        if (assignment['Role']['Name']=="Developer"):
+                            if (lvMultipleDevelopers > 0):
+                                lvDeveloper=lvDeveloper + " and "
+                            lvDeveloper=lvDeveloper + assignment['GeneralUser']['FullName']
+                            lvMultipleDevelopers += 1
+
+                    for custom in item['CustomFields']:
+                        if (custom['Name']=="DateToUAT" and custom['Value'] is not None):
+                            vDevEndDate=custom['Value']
+                        elif(custom['Name']=="DateToProd" and custom['Value'] is not None):
+                            vDeploymentDate=custom['Value']
+                    if (vDevEndDate !="" and vDevEndDate is not None and vDeploymentDate !="" and vDeploymentDate is not None):
+                        lvModifiedCycleTime= (datetime.fromisoformat(str(vDeploymentDate)) -  datetime.fromisoformat(str(vDevEndDate))).days
+                        if (lvModifiedCycleTime < 0):
+                            lvModifiedCycleTime=""
+#                    
+                    row = [lvLinkId, item['Name'],"Bug",ifnull(item['Project'],"null",'Name'),ifnull(item['Team'],"null",'Name'),lvWeek, lvDeveloper,ifnull(item['Feature'],"null",'Name'), lvModifiedCycleTime,item['CycleTime'], lvLinkRelease,lvRelatedUserStory,item['Effort'],ifnull(item['TeamIteration'],"",'Id'),ifnull(item['EntityState'],"null",'Name'),1,lvIterationName,lvIterationStartDate,lvIterationEndDate, lvPivot ,vDeploymentDate,vDevEndDate,item['EndDate'],"=IFERROR(1/COUNTIF($I:$I,@$I:$I), 0)"]
+                    
+                    sheet.append(row)
+                    
+                try:
+                    URL=json_dict['Next']
+                except:
+                    URL=""
+
 
 def populateReleases(book):
-    resetSheet(gvSheetNameReleases,book)
-    sheet=book[gvSheetNameReleases]
-    # for i in vReleases:
-    #     sheet = book[vSheetNameReleases]
-    #     URL="https://drivetime.tpondemand.com/api/v1/Releases/"+str(i)+"?include=[Name,EndDate,Effort,Owner]&format=json&dateformat=iso"
-    #     json_dict= requestHelper(URL)
-    #     if json_dict != "Error":
-    #         row = [json_dict['Id'],json_dict['Name'],json_dict['EndDate'],json_dict['Effort'],json_dict['Owner']['FullName']]
-    #         print(i)
-    #         sheet.append(row)
-    for loopProjects in gvProjects:
-        URL="https://drivetime.tpondemand.com/api/v1/Releases?where=(Projects.ID%20eq%20"+str(loopProjects)+")&include=[Name,EndDate,Effort,Owner]&format=json&dateformat=iso&take=1000"
+    for loopTeams in gvTeams:
+        sheet = book[gvSheetNameReleases]
+        URL="https://drivetime.tpondemand.com/api/v2/Releases?where=(Teams=%27"+loopTeams+"%27)&select={Id,Name,EndDate,Effort,BuildMaster,rolledback,teams,status}&format=json&dateformat=iso&take=1000"
         json_dict= requestHelper(URL)
         if json_dict != "Error":
-            for item in json_dict['Items']:
-                row = [item['Id'],item['Name'],item['EndDate'],item['Effort'],item['Owner']['FullName']]
+            for item in json_dict['items']:
+                lvWeek=""
+                lvLinkRelease=""
+
+                lvLinkRelease = "=HYPERLINK(\"https://drivetime.tpondemand.com/entity/" + str(item['id']) + "\", \"" + str(item['id']) + "\")"
+
+                if item['endDate'] is not None:                        
+                    lvWeek=datetime.fromisoformat(item['endDate']).strftime("%W")
+                     
+                row = [lvLinkRelease,item['name'],item['endDate'][0:10],item['teams'],lvWeek,item['buildMaster'],item['status'],item['effort'],item['rolledback']]
                 sheet.append(row)

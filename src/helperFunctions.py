@@ -1,7 +1,7 @@
 import json
 from openpyxl.styles import Font
 import requests
-from config_core import *
+from config_digital import *
 
 import datetime
 import time
@@ -25,16 +25,16 @@ def resetSheet(sheetName, workbook,lvMode):
     workbook.create_sheet(sheetName)
     sheet = workbook[sheetName]
     setSheetHeaderRow(sheet,sheetName,lvMode)
-
+    sheet.freeze_panes = 'A2'
 
 def setSheetHeaderRow(sheet, sheetName,lvMode):
     if sheetName == 'Stories':
         if lvMode == 'Sprint':
-          sheet.append(['Id','Name','Effort','Project','Team','Feature','ModifiedCycleTime','CycleTime','Release','Iteration','State','BugsCount','IterationReleaseCount','TeamIterationName','IterationStartDate','IterationEndDate','PivotNameDate','DeploymentDate','UAT Date','Story End Date'])
+          sheet.append(['Id','Name','IssueType','Project','Team','Week','Developer','Feature','ModifiedCycleTime','CycleTime','Release','AssociatedUserStory','Effort','Iteration','State','BugsCount','TeamIterationName','IterationStartDate','IterationEndDate','PivotNameDate','DeploymentDate','UATDate','StoryEndDate', 'DistinctReleaseCount'])
         else:
-          sheet.append(['Id','Name','Effort','Project','Team','Feature','ModifiedCycleTime','CycleTime','Release','State','BugsCount','IterationReleaseCount','CalendarWeek','StoryEndDate','PivotWeek','DeploymentDate','UAT Date'])  
+          sheet.append(['Id','Name','Effort','Project','Team','Feature','ModifiedCycleTime','CycleTime','Release','State','BugsCount','IterationReleaseCount','CalendarWeek','StoryEndDate','PivotWeek','DeploymentDate','UATDate'])  
     elif sheetName == 'Releases':
-        sheet.append(['Id','Name','EndDate','Total Effort','Release Owner'])
+        sheet.append(['Id','Name','EndDate','Team','Week','BuildMaster', 'Status','Effort', 'IsRolledBack'])
     vHeaderFont=Font(size=14,bold=True)
     for cell in sheet["1:1"]:
         cell.font=vHeaderFont
@@ -51,7 +51,7 @@ def delete(sheet):
 
 def requestHelper(URL):
     try:
-        req = requests.get(URL+gvTPToken)
+        req = requests.get(URL + '&access_token=' + gvTPToken)
     except requests.exceptions.RequestException as e:
         print("Error for URL" + URL)
         return "Error"

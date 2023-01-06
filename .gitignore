@@ -1,0 +1,15 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/.vs/engineeringmetrics/FileContentIndex
+/.vs/engineeringmetrics/v17
+/.vs
+/src/__pycache__/config.cpython-39.pyc
+/src/__pycache__/config_core.cpython-37.pyc
+/src/__pycache__/config_digital.cpython-37.pyc
+/src/__pycache__/helperFunctions.cpython-37.pyc
+/src/__pycache__/sheetWriter.cpython-37.pyc
+/src/__pycache__/sheetWriter_kb.cpython-37.pyc
+/src/__pycache__/config.cpython-39.pyc
+/src/__pycache__/config.cpython-39.pyc
